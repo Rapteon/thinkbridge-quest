@@ -6,11 +6,13 @@ const fs = require("fs");
 class InputLoader {
   static FATAL_ERROR = 5;
   constructor(filePath) {
-    this.filePath = filePath;
+    this.fileData = fs.readFileSync(filePath, "utf-8");
   }
 
-  async readFile(filePath) {
-    return await fs.readFileSync(filePath, "utf-8");
+  json() {
+    const json = this.parseJSON(this.fileData);
+    this.validateJSON(json);
+    return json;
   }
 
   parseJSON(fileContents) {
@@ -36,24 +38,14 @@ class InputLoader {
 
     const valid = ajv.validate(schema, json);
     if (!valid) {
+      console.log("Encountered the following errors when reading the file.");
       console.error(ajv.errors);
+      json["errorIndices"] = new Set();
+      for (let err of ajv.errors) {
+        const errIdx = err["instancePath"].split("/")[1];
+        json["errorIndices"].add(Number(errIdx));
+      }
     }
-  }
-
-  get data() {
-    if (this.json === undefined) {
-      this.readFile(filePath)
-        .then((data) => {
-          const json = this.parseJSON(data);
-          this.validateJSON(json);
-          this.json = json;
-        })
-        .catch((err) => {
-          console.error(err);
-          process.exit(InputLoader.FATAL_ERROR);
-        });
-    }
-    return this.json;
   }
 }
 
